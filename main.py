@@ -26,8 +26,11 @@ gc.collect()
 sta_if: WLAN = None
 ap_if: WLAN = None
 
-ntp_timer: Timer = None
+timer_ntp: Timer = None
+timer_wlan: Timer = None
 
+def test(*args, **kwargs):
+    print("Test! args: %s    kwargs: %s" % (str(args), str(kwargs)))
 
 def df():
     s = os.statvfs('//')
@@ -160,47 +163,48 @@ def waitSTAUp():
                 return 
 
 
-def _watchSTAConnection():
-    while True:
-        if sta_if.isconnected():
-            time.sleep(8)
-        else:
-            log.warn("STA connection lost.")
-            try:
-                sta_if.disconnect()
-                waitSTAUp()
-            except Exception:
-                pass
+def _watchSTAConnection(*args, **kwargs):
+    if not sta_if.isconnected():
+        log.warn("STA connection lost.")
+        try:
+            sta_if.disconnect()
+            waitSTAUp()
+        except Exception:
+            pass
+    
+    timer_wlan.init(period=8000, mode=Timer.ONE_SHOT, callback=_watchSTAConnection)
 
 
 def watchSTAConnection():
-    global sta_if
+    global sta_if, timer_wlan
     if sta_if is not None:
-        _thread.start_new_thread(_watchSTAConnection, ())
+        if timer_wlan is None:
+            timer_wlan = Timer(-1)
+            _watchSTAConnection()
 
 
-def _runNTP():
-    while True:
-        try:
-            log.info("NTP Syncing")
-            ntptime.NTP_DELTA = netconfig.TIMEZONE_DELTA   # 可选 UTC+8偏移时间（秒），不设置就是UTC0
-            ntptime.host = netconfig.NTP_HOST  # 可选，ntp服务器，默认是"pool.ntp.org"
-            ntptime.settime()   # 修改设备时间,到这就已经设置好了
-            log.info("NTP time synced. Sync again after 6h")
-            for _ in range(0, 30):
-                time.sleep(2 * 60)
-        except Exception as e:
-            log.error("NTP time Sync failed, retry after 3s")
-            sys.print_exception(e, sys.stderr)
-            time.sleep(3)
+def _runNTP(*args, **kwargs):
+    try:
+        log.info("NTP Syncing")
+        ntptime.NTP_DELTA = netconfig.TIMEZONE_DELTA   # 可选 UTC+8偏移时间（秒），不设置就是UTC0
+        ntptime.host = netconfig.NTP_HOST  # 可选，ntp服务器，默认是"pool.ntp.org"
+        ntptime.settime()   # 修改设备时间,到这就已经设置好了
+        log.info("NTP time synced. Sync again after 6h")
+        timer_ntp.init(period=6 * 60 * 60 * 1000, mode=Timer.ONE_SHOT, callback=_runNTP)
+    except Exception as e:
+        log.error("NTP time Sync failed, retry after 3s")
+        sys.print_exception(e, sys.stderr)
+        timer_ntp.init(period=3000, mode=Timer.ONE_SHOT, callback=_runNTP)
 
 
 def setupNTP():
-    global sta_if, ntp_timer
+    global sta_if, timer_ntp
     if sta_if is None:
-        log.info("STA not configured, skip NTP client")
+        log.warn("STA not configured, skip NTP client")
     else:
-        _thread.start_new_thread(_runNTP, ())
+        if timer_ntp is None:
+            timer_ntp = Timer(-1)
+            _runNTP()
 
 
 def setupDigitalClock():
@@ -288,7 +292,7 @@ def _boot():
 
 
 def main():
-    log.info("Kenvix Home Light Controller v1.0")
+    log.info("Kenvix Fingerprint Door Controller v1.0")
     log.info("System info: %s" % str(os.uname()))
     gc.enable()
     gc.collect()
