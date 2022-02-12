@@ -13,20 +13,14 @@ tmd = None
 pinStatus: Pin
 timerStatus: Timer
 pinBootButton: Pin
-
-
-def pinBootButtonIrqHandler(_): return log.debug("Button Boot Pressed")
-
-
+pinBootButtonIrqHandler = lambda _: log.debug("Button Boot Pressed")
 fingerSession: Serial = None
 fingerWakPin: Pin = None
-
-
-def pinFingerWakIrqHandler(_): return log.debug("Finger wak pin pressed")
-
+pinFingerWakIrqHandler = lambda _: log.debug("Finger wak pin pressed")
+pinMotor: Pin
 
 def loadPin():
-    global pinStatus, pinBootButton, pinLight, pinBootButtonIrqHandler, fingerSession, fingerWakPin, timerStatus
+    global pinStatus, pinBootButton, pinLight, pinBootButtonIrqHandler, fingerSession, fingerWakPin, timerStatus, pinMotor
     pinStatus: Pin = machine.Pin(gpioconfig.LED_STATUS_PIN, Pin.OUT)
     pinBootButton: Pin = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
     pinBootButton.irq(
@@ -35,6 +29,8 @@ def loadPin():
     )
     # timerStatus = None
     timerStatus = Timer(-1)
+    if gpioconfig.MOTOR_ENABLE:
+        pinMotor: Pin = machine.Pin(gpioconfig.MOTOR_PIN, Pin.OUT)
 
 # def blinkStatusLED(freq = 3, duty = 20):
 #     global timerStatus
@@ -75,6 +71,7 @@ def loadFinger():
 
 
 def doorOpen():
+    pwm = PWM()
     pass
 
 
