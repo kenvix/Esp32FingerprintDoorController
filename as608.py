@@ -620,11 +620,17 @@ def enroll_finger_to_device(session, as608_lib, imgNum=2, onNext=lambda: fig_pri
     return True
 
 
-def search_fingerprint_on_device(session, as608_lib):
+def search_fingerprint_on_device(session, as608_lib, exit_if_no_finger = False):
     """Get a finger print image, template it, and see if it matches!"""
     fig_print_log("Waiting for image...")
-    while session.get_image() != as608_lib.OK:
-        pass
+    i = session.get_image()
+    while i != as608_lib.OK:
+        if exit_if_no_finger and i == as608_lib.NOFINGER:
+            fig_print_log("No finger found  exit...")
+            return False
+        else:
+            i = session.get_image()
+
     fig_print_log("Templating...")
     if session.image_2_tz(1) != as608_lib.OK:
         return False

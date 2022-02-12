@@ -120,7 +120,3 @@ def _doorOpenAndClose3(timer: Timer, pwm: PWM):
     global isDoorOperating
     pwm = PWM(pinMotor, freq=gpioconfig.DOOR_MOTOR_PWM_CLOSE_FREQ, duty=gpioconfig.DOOR_MOTOR_PWM_CLOSE_DUTY)
     motorPwmTimer.init(period=gpioconfig.DOOR_MOTOR_ROLLTATE_DELAY, mode=Timer.ONE_SHOT, callback=lambda x: _doorTimerDeinit(x, pwm))
-
-
-def startDoorController():
-    log.info("Starting door controller")

@@ -1,4 +1,8 @@
 import as608 as as608
+import gpios
+
+def once():
+    print(as608.search_fingerprint_on_device(gpios.fingerSession, as608, exit_if_no_finger=True))
 
 def fp_test():
     session = as608.connect_serial_session("COM3")
