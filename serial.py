@@ -1,6 +1,7 @@
 import time
 from machine import UART
 from config import gpioconfig
+import log
 
 class Serial(UART):
     def __init__(self, port, baudrate=9600, bytesize=8, stopbits=1, timeout=1) -> None:
@@ -37,7 +38,7 @@ class Serial(UART):
                     timeout_counter = self.timeout_counter_init
 
             if result is None or len(result) == 0 and timeout_counter < 0:
-                raise TimeoutError("UART Read time out.")
+                log.warn("UART Read time out.")
 
             return result
 

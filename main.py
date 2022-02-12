@@ -290,6 +290,10 @@ def _boot(*args, **kwargs):
     showDigital('ntp ')
     setupNTP()
     keepShowTime()
+
+    if gpioconfig.FINGER_ENABLE:
+        gpios.loadFinger()
+
     gc.collect()
     gpios.cancelBlinkStatusLED()
 
