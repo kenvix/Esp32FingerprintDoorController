@@ -12,6 +12,11 @@ def addFinger():
     as608.enroll_finger_to_device(gpios.fingerSession, as608)
 
 
+def onFingerDetected(finger_id: int, confidence: float):
+    log.info("Opening door")
+    gpios.doorOpenAndClose()
+
+
 def _doorFingerWakIrqHandler(pin: Pin):
     global _isFingerDetectionShouldStop, _isFingerDetecting
     if pin.value() == 1:
@@ -29,8 +34,8 @@ def _doorFingerWakIrqPressHandler():
     
     while not _isFingerDetectionShouldStop:
         if as608.search_fingerprint_on_device(gpios.fingerSession, as608, exit_if_no_finger=True):
-            log.info("Finger check pass. Opening door")
-            gpios.doorOpenAndClose()
+            log.info("Finger checked: Finger id: %d | Confidence: %f" % (gpios.fingerSession.finger_id, gpios.fingerSession.confidence))
+            onFingerDetected(gpios.fingerSession.finger_id, gpios.fingerSession.confidence)
             break
     
     _isFingerDetecting = False

@@ -14,8 +14,9 @@ pinStatus: Pin
 timerStatus: Timer
 pinBootButton: Pin
 pinBootButtonIrqHandler = lambda _: log.debug("Button Boot Pressed")
-fingerSession: Serial = None
+fingerSession: as608.Operation = None
 fingerWakPin: Pin = None
+
 isDoorOperating = False
 pinFingerWakIrqHandler = lambda _: log.debug("Finger wak pin pressed")
 pinMotor: Pin
@@ -72,6 +73,15 @@ def loadFinger():
                 trigger=Pin.IRQ_RISING,
                 handler=pinFingerWakIrqHandler
             )
+        
+        log.debug("finger_set_security_level: %d" % gpioconfig.FINGER_SECURITY_LEVEL)
+        finger_set_security_level(gpioconfig.FINGER_SECURITY_LEVEL)
+
+
+def finger_set_security_level(level):
+    global fingerSession
+    fingerSession.set_sysparam(5, int(level))
+
 
 def _doorTimerDeinit(timer: Timer, pwm: PWM):
     global isDoorOperating
