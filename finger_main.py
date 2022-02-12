@@ -3,7 +3,7 @@ import threading
 import struct
 import logging
 
-import as608_combo_lib as as608
+import as608 as as608
 
 
 class FingerMain:

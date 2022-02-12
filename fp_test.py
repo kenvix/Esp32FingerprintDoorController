@@ -1,4 +1,4 @@
-import as608_combo_lib as as608
+import as608 as as608
 
 def fp_test():
     session = as608.connect_serial_session("COM3")

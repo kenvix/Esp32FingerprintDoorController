@@ -7,13 +7,12 @@ class Serial(UART):
         if isinstance(port, str) and port.startswith("COM"):
             port = int(port[3:]) - 1
         super().__init__(port)
-        self.read_timeout = gpioconfig.IO_READ_TIMEOUT
-        self.timeout_counter_init = self.read_timeout / gpioconfig.IO_BLOCK_SLEEP_TIME
+        self.set_read_timeout(gpioconfig.IO_READ_TIMEOUT)
         self.init(baudrate, bits=bytesize, parity=None, stop=stopbits, timeout=timeout)
 
     def set_read_timeout(self, timeout):
         self.read_timeout = timeout
-        self.timeout_counter_init = self.read_timeout / gpioconfig.IO_BLOCK_SLEEP_TIME
+        self.timeout_counter_init = int(self.read_timeout / gpioconfig.IO_BLOCK_SLEEP_TIME)
 
     def read(self, num=None):
         if num is None:

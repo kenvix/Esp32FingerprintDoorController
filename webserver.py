@@ -3,40 +3,40 @@ import _thread
 import picoweb
 import log
 import gpios
+from utils import CommonResult
+from config import gpioconfig
 
-app = picoweb.WebApp(netconfig.DEVICE_NAME)
+app = picoweb.WebApp("")
+
+if gpioconfig.FINGER_ENABLE:
+    import as608
+
+def sendHeaders(resp):
+    yield from picoweb.start_response(resp, headers={
+        'Cache-control' : 'no-store',
+        'Content-Type' : 'application/json',
+        'Access-Control-Allow-Origin' : '*',
+        'Access-Control-Allow-Methods' : 'GET, POST, PUT, DELETE, OPTIONS'
+    })
+
+@app.route("/test")
+def test(req, resp):
+    yield from resp.awrite("Working")
 
 @app.route("/")
 def index(req, resp):
-    yield from resp.awrite("Working")
+    yield from resp.awrite(CommonResult.test())
 
-htmlText: str
-
-def returnLightSwitchHTML(req, resp, state):
-    yield from picoweb.start_response(resp, headers={
-        'Cache-control' : 'no-store'
-    })
-    
-    now = log.nowInString()
-    yield from resp.awrite(htmlText.replace("{{$currentTime}}", now).replace("{{$currentState}}", state))
-
-
-@app.route("/light")
-def index(req, resp):
-    yield from returnLightSwitchHTML(req, resp, gpios.getLightState())
-
-@app.route("/light/switch")
-def index(req, resp):
-    gpios.switchLight()
-    yield from returnLightSwitchHTML(req, resp, gpios.getLightState())
-    
+@app.route("/finger/list")
+def fingerGetTemplatesList():
+    as608.get_templates_list(session)
+    as608.get_device_size(session)
+    return as608.getList()
 
 def _start(port=80):
     app.run("0.0.0.0", port)
     pass
 
 def start(port=80):
-    global htmlText
-    htmlFile = open('static/gpio.html', 'r')
-    htmlText = htmlFile.read()
+    _thread.stack_size(10240)
     _thread.start_new_thread(_start, ((port,)))
