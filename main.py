@@ -1,3 +1,8 @@
+import gpios
+gpios.loadPin()
+gpios.blinkStatusLED()
+
+
 import os
 import sys
 import log
@@ -12,7 +17,6 @@ from lib import ftp_thread
 import uos
 import ntptime
 import utils
-import gpios
 from machine import Timer
 import _thread
 from machine import Pin
@@ -240,8 +244,6 @@ def _boot(*args, **kwargs):
         setupDigitalClock()
         showDigital('gpio')
 
-    gpios.loadPin()
-
     try:
         showDigital('ap  ')
         setupAP()
@@ -289,7 +291,7 @@ def _boot(*args, **kwargs):
     setupNTP()
     keepShowTime()
     gc.collect()
-
+    gpios.cancelBlinkStatusLED()
 
 def main():
     log.info("Kenvix Fingerprint Door Controller v1.0")

@@ -16,8 +16,9 @@ def sendHeaders(resp):
         'Cache-control' : 'no-store',
         'Content-Type' : 'application/json',
         'Access-Control-Allow-Origin' : '*',
-        'Access-Control-Allow-Methods' : 'GET, POST, PUT, DELETE, OPTIONS'
+        'Access-Control-Allow-Methods' : 'GET, POST, PUT, DELETE, OPTIONS',
     })
+
 
 @app.route("/test")
 def test(req, resp):
@@ -28,10 +29,11 @@ def index(req, resp):
     yield from resp.awrite(CommonResult.test())
 
 @app.route("/finger/list")
-def fingerGetTemplatesList():
-    as608.get_templates_list(session)
-    as608.get_device_size(session)
-    return as608.getList()
+def fingerGetTemplatesList(req, resp):
+    yield from resp.awrite(CommonResult(0, "OK", {
+        "templates" : as608.get_templates_list(gpios.fingerSession),
+        "capacity" : int(as608.get_device_size(gpios.fingerSession)),
+    }).toJSON())
 
 def _start(port=80):
     app.run("0.0.0.0", port)
