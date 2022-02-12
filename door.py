@@ -5,6 +5,7 @@ from machine import Pin, Timer
 import _thread
 
 _isFingerDetecting = False
+_isFingerDetectionShouldStop = False
 
 def addFinger():
     log.info("Adding finger")
@@ -12,6 +13,7 @@ def addFinger():
 
 
 def _doorFingerWakIrqHandler(pin: Pin):
+    global _isFingerDetectionShouldStop, _isFingerDetecting
     if pin.value() == 1:
         if _isFingerDetecting is False:
             _thread.start_new_thread(_doorFingerWakIrqPressHandler, ())
@@ -20,20 +22,23 @@ def _doorFingerWakIrqHandler(pin: Pin):
 
 
 def _doorFingerWakIrqPressHandler():
-    global _isFingerDetecting
+    global _isFingerDetecting, _isFingerDetectionShouldStop
     _isFingerDetecting = True
+    _isFingerDetectionShouldStop = False
     log.debug("Finger wak pin pressed")
     
-    while _isFingerDetecting:
+    while not _isFingerDetectionShouldStop:
         if as608.search_fingerprint_on_device(gpios.fingerSession, as608, exit_if_no_finger=True):
             log.info("Finger check pass. Opening door")
             gpios.doorOpenAndClose()
-            return
+            break
+    
+    _isFingerDetecting = False
 
 
 def _doorFingerWakIrqReleaseHandler():
-    global _isFingerDetecting
-    _isFingerDetecting = False
+    global _isFingerDetectionShouldStop
+    _isFingerDetectionShouldStop = True
     log.debug("Finger wak pin released ")
 
 
