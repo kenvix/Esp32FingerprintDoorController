@@ -235,7 +235,7 @@ def keepShowTime():
         _thread.start_new_thread(_keepShowTime, ())
 
 
-def _boot():
+def _boot(*args, **kwargs):
     if gpioconfig.LED_TM1637_ENABLE is True:
         setupDigitalClock()
         showDigital('gpio')
@@ -296,7 +296,8 @@ def main():
     log.info("System info: %s" % str(os.uname()))
     gc.enable()
     gc.collect()
-    _boot()
+    boot_timer = Timer(-1)
+    boot_timer.init(period=100, mode=Timer.ONE_SHOT, callback=_boot)
     pass
 
 
