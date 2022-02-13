@@ -27,6 +27,7 @@ def enableSyslog():
     if syslogconfig.SYSLOG_ENABLE:
         global syslog
         syslog = usyslog.UDPClient(ip=syslogconfig.SYSLOG_HOST, port=syslogconfig.SYSLOG_PORT)
+        debug("Syslog enabled")
 
 def print_log(level, message):
     t = time.time()

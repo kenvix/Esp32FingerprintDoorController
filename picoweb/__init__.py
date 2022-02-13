@@ -4,6 +4,7 @@
 import sys
 import gc
 import micropython
+import log
 import utime
 import uio
 import ure as re
@@ -123,7 +124,7 @@ class WebApp:
             request_line = yield from reader.readline()
             if request_line == b"":
                 if self.debug >= 0:
-                    self.log.error("%s: EOF on request start" % reader)
+                    log.error("%s: EOF on request start" % reader)
                 yield from writer.aclose()
                 return
             req = HTTPRequest()
@@ -131,7 +132,7 @@ class WebApp:
             request_line = request_line.decode()
             method, path, proto = request_line.split()
             if self.debug >= 0:
-                self.log.info('%.3f %s %s "%s %s"' %
+                log.info('%.3f %s %s "%s %s"' %
                               (utime.time(), req, writer, method, path))
             path = path.split("?", 1)
             qs = ""
@@ -215,14 +216,14 @@ class WebApp:
             #print(req, "After response write")
         except Exception as e:
             if self.debug >= 0:
-                self.log.exc(e, "%.3f %s %s %r" %
+                log.error("%.3f %s %s %r" %
                              (utime.time(), req, writer, e))
             yield from self.handle_exc(req, writer, e)
 
         if close is not False:
             yield from writer.aclose()
         if __debug__ and self.debug > 1:
-            self.log.debug("%.3f %s Finished processing request",
+            log.debug("%.3f %s Finished processing request",
                            utime.time(), req)
 
     def handle_exc(self, req, resp, e):
@@ -312,12 +313,7 @@ class WebApp:
         loop.run_forever()
 
     def run(self, host="127.0.0.1", port=8081, debug=False, lazy_init=False, log=None):
-        if log is None and debug >= 0:
-            import ulogging
-            log = ulogging.getLogger("picoweb")
-            if debug > 0:
-                log.setLevel(ulogging.DEBUG)
-        self.log = log
+        log = log
         gc.collect()
         self.debug = int(debug)
         self.init()
