@@ -13,6 +13,8 @@ tmd = None
 pinStatus: Pin
 timerStatus: Timer
 pinBootButton: Pin
+pinBeepInside: Pin
+pinBeepOutside: Pin
 pinBootButtonIrqHandler = lambda _: log.debug("Button Boot Pressed")
 fingerSession: as608.Operation = None
 fingerWakPin: Pin = None
@@ -21,10 +23,13 @@ isDoorOperating = False
 pinFingerWakIrqHandler = lambda _: log.debug("Finger wak pin pressed")
 pinMotor: Pin
 motorPwmTimer = Timer(1)
+beepTimer = Timer(2)
+BEEP_INSIDE = 1
+BEEP_OUSIDE = 2
 
 
 def loadPin():
-    global pinStatus, pinBootButton, pinLight, pinBootButtonIrqHandler, fingerSession, fingerWakPin, timerStatus, pinMotor
+    global pinStatus, pinBootButton, pinLight, pinBootButtonIrqHandler, fingerSession, fingerWakPin, timerStatus, pinMotor, pinBeepInside, pinBeepOutside
     pinStatus: Pin = machine.Pin(gpioconfig.LED_STATUS_PIN, Pin.OUT)
     pinStatus.value(0)
     pinBootButton: Pin = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
@@ -36,6 +41,13 @@ def loadPin():
     timerStatus = Timer(-1)
     if gpioconfig.DOOR_MOTOR_ENABLE:
         pinMotor: Pin = machine.Pin(gpioconfig.DOOR_MOTOR_PIN, Pin.OUT)
+    if gpioconfig.BEEP_INSIDE_PIN > 0:
+        pinBeepInside: Pin = machine.Pin(gpioconfig.BEEP_INSIDE_PIN, Pin.OUT)
+        pinBeepInside.value(0)
+    if gpioconfig.BEEP_OUTSIDE_PIN > 0:
+        pinBeepOutside: Pin = machine.Pin(gpioconfig.BEEP_OUTSIDE_PIN, Pin.OUT)
+        pinBeepOutside.value(0)
+    
 
 # def blinkStatusLED(freq = 3, duty = 20):
 #     global timerStatus
@@ -55,6 +67,26 @@ def blinkStatusLED(period=350):
 def cancelBlinkStatusLED():
     global timerStatus
     timerStatus.deinit()
+
+def beepOutsideOnce(time=300):
+    pinBeepOutside.value(1)
+    beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: pinBeepOutside.value(0))
+
+
+def beepInsideOnce(time=300):
+    pinBeepInside.value(1)
+    beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: pinBeepInside.value(0))
+
+def _beepOutside(time=300, num=2):
+    if num <= 0:
+        return
+    pinBeepOutside.value(not pinBeepOutside.value())
+    beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: _beepOutside(time, num - 1))
+
+def beepOutside(time=300, num=2):
+    pinBeepOutside.value(0)
+    num *= 2
+    beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: _beepOutside(time, num - 1))
 
 
 def reboot():

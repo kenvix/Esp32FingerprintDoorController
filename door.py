@@ -12,6 +12,7 @@ def addFinger():
     global isFingerAdding
     isFingerAdding = True
     log.info("Adding finger")
+    gpios.beepOutside(time=150, num=4)
     as608.enroll_finger_to_device(gpios.fingerSession, as608)
     isFingerAdding = False
 
@@ -20,6 +21,7 @@ def addFingerAsync():
 
 def onFingerDetected(finger_id: int, confidence: float):
     log.info("Opening door")
+    gpios.beepOutsideOnce(1000)
     gpios.doorOpenAndClose()
 
 
@@ -46,6 +48,9 @@ def _doorFingerWakIrqPressHandler():
             log.info("Finger checked: Finger id: %d | Confidence: %f" % (gpios.fingerSession.finger_id, gpios.fingerSession.confidence))
             onFingerDetected(gpios.fingerSession.finger_id, gpios.fingerSession.confidence)
             break
+        else:
+            log.info("Finger not found or unmatched")
+            gpios.beepOutside(time=200, num=2)
     
     isFingerDetecting = False
 

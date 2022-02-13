@@ -300,6 +300,7 @@ def _boot(*args, **kwargs):
 
     gc.collect()
     gpios.cancelBlinkStatusLED()
+    gpios.beepOutsideOnce(180)
 
 def main():
     log.info("Kenvix Fingerprint Door Controller v1.0")
