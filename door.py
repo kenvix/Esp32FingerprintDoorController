@@ -4,13 +4,19 @@ import as608
 from machine import Pin, Timer
 import _thread
 
-_isFingerDetecting = False
-_isFingerDetectionShouldStop = False
+isFingerDetecting = False
+isFingerDetectionShouldStop = False
+isFingerAdding = False
 
 def addFinger():
+    global isFingerAdding
+    isFingerAdding = True
     log.info("Adding finger")
     as608.enroll_finger_to_device(gpios.fingerSession, as608)
+    isFingerAdding = False
 
+def addFingerAsync():
+    _thread.start_new_thread(addFinger, ())
 
 def onFingerDetected(finger_id: int, confidence: float):
     log.info("Opening door")
@@ -18,38 +24,41 @@ def onFingerDetected(finger_id: int, confidence: float):
 
 
 def _doorFingerWakIrqHandler(pin: Pin):
-    global _isFingerDetectionShouldStop, _isFingerDetecting
+    global isFingerDetectionShouldStop, isFingerDetecting, isFingerAdding
+    if isFingerAdding:
+        return
+
     if pin.value() == 1:
-        if _isFingerDetecting is False:
+        if isFingerDetecting is False:
             _thread.start_new_thread(_doorFingerWakIrqPressHandler, ())
     else:
         _doorFingerWakIrqReleaseHandler()
 
 
 def _doorFingerWakIrqPressHandler():
-    global _isFingerDetecting, _isFingerDetectionShouldStop
-    _isFingerDetecting = True
-    _isFingerDetectionShouldStop = False
+    global isFingerDetecting, isFingerDetectionShouldStop
+    isFingerDetecting = True
+    isFingerDetectionShouldStop = False
     log.debug("Finger wak pin pressed")
     
-    while not _isFingerDetectionShouldStop:
+    while not isFingerDetectionShouldStop:
         if as608.search_fingerprint_on_device(gpios.fingerSession, as608, exit_if_no_finger=True):
             log.info("Finger checked: Finger id: %d | Confidence: %f" % (gpios.fingerSession.finger_id, gpios.fingerSession.confidence))
             onFingerDetected(gpios.fingerSession.finger_id, gpios.fingerSession.confidence)
             break
     
-    _isFingerDetecting = False
+    isFingerDetecting = False
 
 
 def _doorFingerWakIrqReleaseHandler():
-    global _isFingerDetectionShouldStop
-    _isFingerDetectionShouldStop = True
+    global isFingerDetectionShouldStop
+    isFingerDetectionShouldStop = True
     log.debug("Finger wak pin released ")
 
 
 def startDoorController():
     log.info("Starting door controller")
-    global _isFingerDetecting
+    global isFingerDetecting
     gpios.fingerWakPin.irq(
         trigger=Pin.IRQ_RISING|Pin.IRQ_FALLING,
         handler=_doorFingerWakIrqHandler,

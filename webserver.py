@@ -5,6 +5,7 @@ import log
 import gpios
 from utils import CommonResult
 from config import gpioconfig
+import door
 
 app = picoweb.WebApp("")
 
@@ -28,12 +29,35 @@ def test(req, resp):
 def index(req, resp):
     yield from resp.awrite(CommonResult.test())
 
+
+@app.route("/finger")
+def fingerAdd(req, resp):
+    yield from resp.awrite(CommonResult(0, "OK", {
+        "isFingerEnabled" : gpioconfig.FINGER_ENABLE,
+        "fingerPin": gpioconfig.FINGER_WAK_PIN,
+        "fingerUartPort": gpioconfig.FINGER_UART_PORT,
+        "fingerSecurityLevel": gpioconfig.FINGER_SECURITY_LEVEL,
+        "isFingerWakIrqEnabled": gpioconfig.FINGER_WAK_IRQ_ENABLE,
+        "isFingerDetecting" : door.isFingerDetecting,
+        "isFingerDetectionShouldStop": door.isFingerDetectionShouldStop,
+        "isFingerAdding": door.isFingerAdding,
+    }).toJSON())
+
 @app.route("/finger/list")
 def fingerGetTemplatesList(req, resp):
     yield from resp.awrite(CommonResult(0, "OK", {
         "templates" : as608.get_templates_list(gpios.fingerSession),
         "capacity" : int(as608.get_device_size(gpios.fingerSession)),
     }).toJSON())
+
+
+@app.route("/finger/add")
+def fingerAdd(req, resp):
+    try:
+        door.addFingerAsync()
+        yield from resp.awrite(CommonResult(0, "Prepared to add finger, put your finger now.").toJSON())
+    except Exception as e:
+        yield from resp.awrite(CommonResult(1, "Failed to add finger: %s" % e).toJSON())
 
 
 @app.route("/door")
@@ -47,10 +71,6 @@ def doorInfo(req, resp):
         "directOpenPin": gpioconfig.DOOR_DIRECT_PIN_OPEN,
         "directClosePin": gpioconfig.DOOR_DIRECT_PIN_CLOSE,
         "directRolltateDelay": gpioconfig.DOOR_DIRECT_ROLLTATE_DELAY,
-        "isFingerEnabled" : gpioconfig.FINGER_ENABLE,
-        "fingerPin": gpioconfig.FINGER_WAK_PIN,
-        "fingerUartPort": gpioconfig.FINGER_UART_PORT,
-        "fingerSecurityLevel": gpioconfig.FINGER_SECURITY_LEVEL,
         "isBeepEnabled" : gpioconfig.BEEP_OUTSIDE_PIN != None,
         "beepOutsidePin": gpioconfig.BEEP_OUTSIDE_PIN,
         "beepInsidePin": gpioconfig.BEEP_INSIDE_PIN,
