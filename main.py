@@ -2,7 +2,7 @@ import gpios
 gpios.loadPin()
 gpios.blinkStatusLED()
 
-
+from config import functionconfig
 import os
 import sys
 import log
@@ -20,7 +20,6 @@ import utils
 from machine import Timer
 import _thread
 from machine import Pin
-from lib import slimDNS
 import gc
 
 gc.collect()
@@ -82,8 +81,10 @@ def setupAP():
 
 
 def setupmDNS(local_addr):
-    server = slimDNS.SlimDNSServer(local_addr, netconfig.DEVICE_NAME.lower())
-    _thread.start_new_thread(server.run_forever, ())
+    if functionconfig.MDNS_ENABLE:
+        from lib import slimDNS
+        server = slimDNS.SlimDNSServer(local_addr, netconfig.DEVICE_NAME.lower())
+        _thread.start_new_thread(server.run_forever, ())
 
 
 def waitAPUp():

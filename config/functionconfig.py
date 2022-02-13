@@ -1,0 +1,2 @@
+MDNS_ENABLE = False
+

@@ -11,14 +11,14 @@ messageUrl = "https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=%s"
 def refreshAccessToken(*args, **kwargs):
     global accessToken
     try:
-        response = requests.get(accessTokenUrl)
-        if response.status_code == 200:
-            accessToken = response.json()["access_token"]
-            log.info("Access token refreshed, refresh after 30min again")
-            refreshTimer.init(period=30 * 60 * 1000, mode=Timer.ONE_SHOT, callback=refreshAccessToken)
-        else:
-            log.error("Access token refresh failed. Status code: %d" % response.status_code)
-            refreshTimer.init(period=10 * 1000, mode=Timer.ONE_SHOT, callback=refreshAccessToken)
+        with requests.get(accessTokenUrl) as response:
+            if response.status_code == 200:
+                accessToken = response.json()["access_token"]
+                log.info("Access token refreshed, refresh after 30min again")
+                refreshTimer.init(period=30 * 60 * 1000, mode=Timer.ONE_SHOT, callback=refreshAccessToken)
+            else:
+                log.error("Access token refresh failed. Status code: %d" % response.status_code)
+                refreshTimer.init(period=10 * 1000, mode=Timer.ONE_SHOT, callback=refreshAccessToken)
     except Exception as e:
         log.error("Access token refresh failed: %s" % str(e))
         refreshTimer.init(period=10 * 1000, mode=Timer.ONE_SHOT, callback=refreshAccessToken)
