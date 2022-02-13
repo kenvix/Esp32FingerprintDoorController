@@ -279,6 +279,8 @@ def _boot(*args, **kwargs):
     except Exception as e:
         log.error("Setup Wi-FI STA FAILED!")
         sys.print_exception(e, sys.stderr)
+
+    log.enableSyslog()
     
     try:
         showDigital('http')
