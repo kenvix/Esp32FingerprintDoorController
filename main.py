@@ -31,6 +31,7 @@ ap_if: WLAN = None
 
 timer_ntp: Timer = None
 timer_wlan: Timer = None
+timer_gc: Timer = None
 
 def test(*args, **kwargs):
     print("Test! args: %s    kwargs: %s" % (str(args), str(kwargs)))
@@ -303,6 +304,10 @@ def _boot(*args, **kwargs):
     gc.collect()
     gpios.cancelBlinkStatusLED()
     gpios.beepOutsideOnce(180)
+    global timer_gc
+    timer_gc = Timer(-1)
+    timer_gc.init(period=60 * 1000, mode=Timer.PERIODIC, callback=lambda t: gc.collect())
+    
 
 def main():
     log.info("Kenvix Fingerprint Door Controller v1.0")

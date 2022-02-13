@@ -11,7 +11,7 @@ isFingerAdding = False
 def addFinger():
     global isFingerAdding
     isFingerAdding = True
-    log.info("Adding finger")
+    log.info("Finger: Prepared to add finger, put your finger now.")
     gpios.beepOutside(time=150, num=4)
     as608.enroll_finger_to_device(gpios.fingerSession, as608)
     isFingerAdding = False
@@ -20,7 +20,6 @@ def addFingerAsync():
     _thread.start_new_thread(addFinger, ())
 
 def onFingerDetected(finger_id: int, confidence: float):
-    log.info("Opening door")
     gpios.beepOutsideOnce(1000)
     gpios.doorOpenAndClose()
 
