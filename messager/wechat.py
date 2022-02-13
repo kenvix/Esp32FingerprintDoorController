@@ -33,7 +33,7 @@ def sendMessage(msg: str):
         "toparty" : "",
         "totag" : "",
         "msgtype" : "text",
-        "agentid" : int(wechatconfig.WECHAT_AGENTID),
+        "agentid" : wechatconfig.WECHAT_AGENTID,
         "text" : {
             "content" : msg
         },

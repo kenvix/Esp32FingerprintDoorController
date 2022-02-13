@@ -1,3 +1,4 @@
 /pymakr.conf
 config/netconfig.py
+config/wechatconfig.py
 py_compressed
