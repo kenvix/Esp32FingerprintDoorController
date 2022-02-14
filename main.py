@@ -164,6 +164,7 @@ def waitSTAUp():
                 except Exception:
                     pass
             else:
+                gpios.unlightWlanAlertLed()
                 log.info("STA %s is up" % netconfig.STA_SSID)
                 log.info("STA Connection info: %s" % str(sta_if.ifconfig()))
                 return 
@@ -172,6 +173,7 @@ def waitSTAUp():
 def _watchSTAConnection(*args, **kwargs):
     if not sta_if.isconnected():
         log.warn("STA connection lost.")
+        gpios.lightWlanAlertLed()
         try:
             sta_if.disconnect()
             waitSTAUp()
@@ -272,6 +274,7 @@ def _boot(*args, **kwargs):
 
     try:
         showDigital('sta ')
+        gpios.lightWlanAlertLed()
         setupSTA()
         waitSTAUp()
         watchSTAConnection()
