@@ -20,12 +20,14 @@ fingerWakPin: Pin = None
 
 isDoorOperating = False
 isDoorForceLocked = False
+isDoorForceLockButtonWaiting = False
 pinFingerWakIrqHandler = lambda _: log.debug("Finger wak pin pressed")
 pinMotor: Pin
 pinDoorForceLock: Pin
 pinDoorForceLockStatusLed: Pin = None
 motorPwmTimer = Timer(1)
 beepTimer = Timer(2)
+doorForceLockButtonTimer: Timer
 BEEP_INSIDE = 1
 BEEP_OUSIDE = 2
 pinWlanAlertLed: Pin = None
@@ -33,7 +35,7 @@ pinDoorAlertLed: Pin = None
 
 
 def loadPin():
-    global pinStatus, pinBootButton, pinLight, pinBootButtonIrqHandler, fingerSession, fingerWakPin, timerStatus, pinMotor, pinBeepInside, pinBeepOutside, pinDoorForceLock, pinDoorForceLockStatusLed, pinWlanAlertLed, pinDoorAlertLed
+    global pinStatus, pinBootButton, pinLight, pinBootButtonIrqHandler, fingerSession, fingerWakPin, timerStatus, pinMotor, pinBeepInside, pinBeepOutside, pinDoorForceLock, pinDoorForceLockStatusLed, pinWlanAlertLed, pinDoorAlertLed, doorForceLockButtonTimer
     pinStatus: Pin = machine.Pin(gpioconfig.LED_STATUS_PIN, Pin.OUT)
     pinStatus.value(0)
     pinBootButton: Pin = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
@@ -53,6 +55,7 @@ def loadPin():
         pinBeepOutside.value(0)
     if gpioconfig.DOOR_FORCE_LOCK_PIN > 0:
         pinDoorForceLock: Pin = machine.Pin(gpioconfig.DOOR_FORCE_LOCK_PIN, machine.Pin.IN, machine.Pin.PULL_UP)
+        doorForceLockButtonTimer = Timer(-1)
         pinDoorForceLock.irq(
             trigger=Pin.IRQ_FALLING,
             handler=pinDoorForceLockButtonIrqHandler
@@ -92,17 +95,27 @@ def unlightWlanAlertLed():
 #     return timerStatus
 
 def pinDoorForceLockButtonIrqHandler(pin):
-    global isDoorForceLocked
-    isDoorForceLocked = not isDoorForceLocked
-    if isDoorForceLocked:
-        log.info("Door force locked")
-        if pinDoorForceLockStatusLed is not None:
-            pinDoorForceLockStatusLed.value(1)
-    else:
-        log.info("Door force unlocked")
-        if pinDoorForceLockStatusLed is not None:
-            pinDoorForceLockStatusLed.value(0)
+    global isDoorForceLocked, isDoorForceLockButtonWaiting
+    if isDoorForceLockButtonWaiting:
+        return
     
+    isDoorForceLockButtonWaiting = True
+    doorForceLockButtonTimer.init(period=80, mode=Timer.ONE_SHOT, callback=_doorForceLockButtonTimeout)
+    
+def _doorForceLockButtonTimeout(timer):
+    global isDoorForceLockButtonWaiting, isDoorForceLocked
+    if pinDoorForceLock.value() == 0:
+        isDoorForceLocked = not isDoorForceLocked
+        if isDoorForceLocked:
+            log.info("Door force locked")
+            if pinDoorForceLockStatusLed is not None:
+                pinDoorForceLockStatusLed.value(1)
+        else:
+            log.info("Door force unlocked")
+            if pinDoorForceLockStatusLed is not None:
+                pinDoorForceLockStatusLed.value(0)
+
+    isDoorForceLockButtonWaiting = False
 
 def blinkStatusLED(period=350):
     global timerStatus
@@ -113,6 +126,7 @@ def blinkStatusLED(period=350):
 def cancelBlinkStatusLED():
     global timerStatus
     timerStatus.deinit()
+    pinStatus.value(0)
 
 def beepOutsideOnce(time=300):
     pinBeepOutside.value(1)
@@ -130,7 +144,7 @@ def _beepOutside(time=300, num=2):
     beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: _beepOutside(time, num - 1))
 
 def beepOutside(time=300, num=2):
-    pinBeepOutside.value(0)
+    pinBeepOutside.value(1)
     num *= 2
     beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: _beepOutside(time, num - 1))
 

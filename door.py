@@ -41,7 +41,7 @@ def _doorFingerWakIrqPressHandler():
     isFingerDetecting = True
     isFingerDetectionShouldStop = False
     log.debug("Finger wak pin pressed")
-    
+    gpios.lightDoorAlertLed()
     while not isFingerDetectionShouldStop:
         if as608.search_fingerprint_on_device(gpios.fingerSession, as608, exit_if_no_finger=True):
             log.info("Finger checked: Finger id: %d | Confidence: %f" % (gpios.fingerSession.finger_id, gpios.fingerSession.confidence))
@@ -51,6 +51,7 @@ def _doorFingerWakIrqPressHandler():
             log.info("Finger not found or unmatched")
             gpios.beepOutside(time=200, num=2)
     
+    gpios.unlightDoorAlertLed()
     isFingerDetecting = False
 
 
