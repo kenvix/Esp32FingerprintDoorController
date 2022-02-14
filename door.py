@@ -1,3 +1,4 @@
+from config import gpioconfig
 import gpios
 import log
 import as608
@@ -7,6 +8,7 @@ import _thread
 isFingerDetecting = False
 isFingerDetectionShouldStop = False
 isFingerAdding = False
+humanAlertTimer: Timer
 
 def addFinger():
     global isFingerAdding
@@ -68,3 +70,24 @@ def startDoorController():
         trigger=Pin.IRQ_RISING|Pin.IRQ_FALLING,
         handler=_doorFingerWakIrqHandler,
     )
+
+def _humanSensorAlertTimerHandler(timer):
+    gpios.pinBeepOutside.value(not gpios.pinBeepOutside.value())
+
+def _pinHumanSensorIrqHandler(pin: Pin):
+    if pin.value() == 1:    
+        log.info("Human sensor detected")
+        gpios.pinBeepOutside.value(1)
+        humanAlertTimer.init(period=200, mode=Timer.PERIODIC, callback=_humanSensorAlertTimerHandler)
+    else:
+        log.info("Human sensor released")
+        gpios.pinBeepOutside.value(0)
+        humanAlertTimer.deinit()
+
+def startHumanSensor():
+    global humanAlertTimer 
+    if gpioconfig.HUMAN_SENSOR_ENABLE:
+        log.info("Starting human sensor alterter")
+        humanAlertTimer = Timer(-1)
+        if gpioconfig.HUMAN_SENSOR_ALERT_WHEN_DETECTED:
+            gpios.pinHumanSensorIrqHandler = _pinHumanSensorIrqHandler

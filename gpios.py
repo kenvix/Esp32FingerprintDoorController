@@ -10,7 +10,7 @@ if gpioconfig.FINGER_ENABLE:
 
 tmd = None
 pinStatus: Pin
-timerStatus: Timer
+timerStatus: PWM
 pinBootButton: Pin
 pinBeepInside: Pin
 pinBeepOutside: Pin
@@ -33,10 +33,11 @@ BEEP_INSIDE = 1
 BEEP_OUSIDE = 2
 pinWlanAlertLed: Pin = None
 pinDoorAlertLed: Pin = None
-
+pinHumanSensor: Pin
+pinHumanSensorIrqHandler = lambda pin: log.debug("Hunman sensor changed to %d" % pin.value())
 
 def loadPin():
-    global pinStatus, pinBootButton, pinLight, pinBootButtonIrqHandler, fingerSession, fingerWakPin, timerStatus, pinMotor, pinBeepInside, pinBeepOutside, pinDoorForceLock, pinDoorForceLockStatusLed, pinWlanAlertLed, pinDoorAlertLed, doorForceLockButtonTimer, motorPwm
+    global pinStatus, pinBootButton, pinLight, pinBootButtonIrqHandler, fingerSession, fingerWakPin, timerStatus, pinMotor, pinBeepInside, pinBeepOutside, pinDoorForceLock, pinDoorForceLockStatusLed, pinWlanAlertLed, pinDoorAlertLed, doorForceLockButtonTimer, motorPwm, pinHumanSensor
     pinStatus: Pin = machine.Pin(gpioconfig.LED_STATUS_PIN, Pin.OUT)
     pinStatus.value(0)
     pinBootButton: Pin = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
@@ -45,7 +46,8 @@ def loadPin():
         handler=pinBootButtonIrqHandler
     )
     # timerStatus = None
-    timerStatus = Timer(-1)
+    # timerStatus = Timer(-1)
+    timerStatus = PWM(pinStatus, freq=1, duty=0)
     if gpioconfig.DOOR_MOTOR_ENABLE:
         pinMotor: Pin = machine.Pin(gpioconfig.DOOR_MOTOR_PIN, Pin.OUT)
         if gpioconfig.DOOR_MOTOR_KEEP_SIGNAL:
@@ -72,6 +74,12 @@ def loadPin():
     if gpioconfig.DOOR_ALERT_LED_PIN > 0:
         pinDoorAlertLed: Pin = machine.Pin(gpioconfig.DOOR_ALERT_LED_PIN, Pin.OUT)
         pinDoorAlertLed.value(0)
+    if gpioconfig.HUMAN_SENSOR_ENABLE:
+        pinHumanSensor = machine.Pin(gpioconfig.HUMAN_SENSOR_PIN, machine.Pin.IN)
+        pinHumanSensor.irq(
+            trigger=Pin.IRQ_RISING|Pin.IRQ_FALLING,
+            handler=pinHumanSensorIrqHandler
+        )
 
 def lightWlanAlertLed():
     if pinWlanAlertLed is not None:
@@ -122,26 +130,35 @@ def _doorForceLockButtonTimeout(timer):
 
 def blinkStatusLED(period=350):
     global timerStatus
-    timerStatus.init(period=period, mode=Timer.PERIODIC, callback=lambda x: pinStatus.value(not pinStatus.value()))
-    return timerStatus
+    timerStatus.duty(512)
+    timerStatus.freq(int(1 / period * 1000))
 
 
 def cancelBlinkStatusLED():
     global timerStatus
-    timerStatus.deinit()
+    timerStatus.duty(0)
     pinStatus.value(0)
 
 def beepOutsideOnce(time=300):
     pinBeepOutside.value(1)
     beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: pinBeepOutside.value(0))
 
-
 def beepInsideOnce(time=300):
     pinBeepInside.value(1)
     beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: pinBeepInside.value(0))
 
+def unbeepBoth(*args, **kwargs):
+    pinBeepOutside.value(0)
+    pinBeepInside.value(0)
+
+def beepBothOnce(time=300):
+    pinBeepInside.value(1)
+    pinBeepOutside.value(1)
+    beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=unbeepBoth)
+
 def _beepOutside(time=300, num=2):
     if num <= 0:
+        pinBeepOutside.value(0)
         return
     pinBeepOutside.value(not pinBeepOutside.value())
     beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: _beepOutside(time, num - 1))
@@ -150,6 +167,33 @@ def beepOutside(time=300, num=2):
     pinBeepOutside.value(1)
     num *= 2
     beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: _beepOutside(time, num - 1))
+
+def _beepInside(time=300, num=2):
+    if num <= 0:
+        pinBeepInside.value(0)
+        return
+    pinBeepInside.value(not pinBeepInside.value())
+    beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: _beepInside(time, num - 1))
+
+def beepInside(time=300, num=2):
+    pinBeepInside.value(1)
+    num *= 2
+    beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: _beepInside(time, num - 1))
+
+def _beepBoth(time=300, num=2):
+    if num <= 0:
+        pinBeepInside.value(0)
+        pinBeepOutside.value(0)
+        return
+    pinBeepInside.value(not pinBeepInside.value())
+    pinBeepOutside.value(not pinBeepOutside.value())
+    beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: _beepBoth(time, num - 1))
+
+def beepBoth(time=300, num=2):
+    pinBeepInside.value(1)
+    pinBeepOutside.value(1)
+    num *= 2
+    beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: _beepBoth(time, num - 1))
 
 
 def reboot():
