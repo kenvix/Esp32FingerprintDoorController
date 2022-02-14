@@ -48,7 +48,8 @@ def loadPin():
     timerStatus = Timer(-1)
     if gpioconfig.DOOR_MOTOR_ENABLE:
         pinMotor: Pin = machine.Pin(gpioconfig.DOOR_MOTOR_PIN, Pin.OUT)
-        motorPwm = PWM(pinMotor, freq=gpioconfig.DOOR_MOTOR_PWM_CLOSE_FREQ, duty=gpioconfig.DOOR_MOTOR_PWM_CLOSE_DUTY)
+        if gpioconfig.DOOR_MOTOR_KEEP_SIGNAL:
+            motorPwm = PWM(pinMotor, freq=gpioconfig.DOOR_MOTOR_PWM_CLOSE_FREQ, duty=gpioconfig.DOOR_MOTOR_PWM_CLOSE_DUTY)
     if gpioconfig.BEEP_INSIDE_PIN > 0:
         pinBeepInside: Pin = machine.Pin(gpioconfig.BEEP_INSIDE_PIN, Pin.OUT)
         pinBeepInside.value(0)
@@ -177,56 +178,111 @@ def finger_set_security_level(level):
     fingerSession.set_sysparam(5, int(level))
 
 
-def _doorTimerDeinit(timer: Timer, pwm: PWM):
-    global isDoorOperating
-    pwm.deinit()
-    timer.deinit()
-    unlightDoorAlertLed()
-    isDoorOperating = False
+if gpioconfig.DOOR_MOTOR_KEEP_SIGNAL:
+    def doorOpen():
+        global isDoorOperating, motorPwm
+        if isDoorOperating:
+            return
+
+        if isDoorForceLocked:
+            log.info("Door is force locked, cannot open. Press unlock button first")
+            return
+
+        log.info("Door opened permentally")
+        motorPwm.freq(gpioconfig.DOOR_MOTOR_PWM_OPEN_FREQ)
+        motorPwm.duty(gpioconfig.DOOR_MOTOR_PWM_OPEN_DUTY)
 
 
-def doorOpen():
-    global isDoorOperating, motorPwm
-    if isDoorOperating:
-        return
+    def doorClose():
+        global isDoorOperating, motorPwm
+        if isDoorOperating:
+            return
 
-    if isDoorForceLocked:
-        log.info("Door is force locked, cannot open. Press unlock button first")
-        return
-
-    log.info("Door opened permentally")
-    motorPwm.freq(gpioconfig.DOOR_MOTOR_PWM_OPEN_FREQ)
-    motorPwm.duty(gpioconfig.DOOR_MOTOR_PWM_OPEN_DUTY)
+        log.info("Door closed permentally")
+        motorPwm.freq(gpioconfig.DOOR_MOTOR_PWM_CLOSE_FREQ)
+        motorPwm.duty(gpioconfig.DOOR_MOTOR_PWM_CLOSE_DUTY)
 
 
-def doorClose():
-    global isDoorOperating, motorPwm
-    if isDoorOperating:
-        return
-
-    log.info("Door closed permentally")
-    motorPwm.freq(gpioconfig.DOOR_MOTOR_PWM_CLOSE_FREQ)
-    motorPwm.duty(gpioconfig.DOOR_MOTOR_PWM_CLOSE_DUTY)
-
-
-def doorOpenAndClose():
-    global isDoorOperating, motorPwm
-    if isDoorOperating:
-        return
-    isDoorOperating = True
-    if isDoorForceLocked:
-        log.info("Door is force locked, cannot open. Press unlock button first")
-        return
-    log.info("Door unlocked, will be closed automatically after %d s" % gpioconfig.DOOR_AUTOCLOSE_DELAY)
-    lightDoorAlertLed()
-    motorPwm.freq(gpioconfig.DOOR_MOTOR_PWM_OPEN_FREQ)
-    motorPwm.duty(gpioconfig.DOOR_MOTOR_PWM_OPEN_DUTY)
-    motorPwmTimer.init(period=gpioconfig.DOOR_AUTOCLOSE_DELAY, mode=Timer.ONE_SHOT, callback=_doorOpenAndClose2)
+    def doorOpenAndClose():
+        global isDoorOperating, motorPwm
+        if isDoorOperating:
+            return
+        isDoorOperating = True
+        if isDoorForceLocked:
+            log.info("Door is force locked, cannot open. Press unlock button first")
+            return
+        log.info("Door unlocked, will be closed automatically after %d s" % gpioconfig.DOOR_AUTOCLOSE_DELAY)
+        lightDoorAlertLed()
+        motorPwm.freq(gpioconfig.DOOR_MOTOR_PWM_OPEN_FREQ)
+        motorPwm.duty(gpioconfig.DOOR_MOTOR_PWM_OPEN_DUTY)
+        motorPwmTimer.init(period=gpioconfig.DOOR_AUTOCLOSE_DELAY, mode=Timer.ONE_SHOT, callback=_doorOpenAndClose2)
 
 
-def _doorOpenAndClose2(timer: Timer):
-    global isDoorOperating
-    timer.deinit()
-    motorPwm.freq(gpioconfig.DOOR_MOTOR_PWM_CLOSE_FREQ)
-    motorPwm.duty(gpioconfig.DOOR_MOTOR_PWM_CLOSE_DUTY)
-    isDoorOperating = False
+    def _doorOpenAndClose2(timer: Timer):
+        global isDoorOperating
+        timer.deinit()
+        motorPwm.freq(gpioconfig.DOOR_MOTOR_PWM_CLOSE_FREQ)
+        motorPwm.duty(gpioconfig.DOOR_MOTOR_PWM_CLOSE_DUTY)
+        isDoorOperating = False
+        unlightDoorAlertLed()
+else:
+    def _doorTimerDeinit(timer: Timer, pwm: PWM):
+        global isDoorOperating
+        pwm.deinit()
+        timer.deinit()
+        unlightDoorAlertLed()
+        isDoorOperating = False
+    
+    def doorOpen():
+        global isDoorOperating
+        if isDoorOperating:
+            return
+        isDoorOperating = True
+        if isDoorForceLocked:
+            log.info("Door is force locked, cannot open. Press unlock button first")
+            return
+
+        log.info("Door opened permentally")
+        lightDoorAlertLed()
+        pwm = PWM(pinMotor, freq=gpioconfig.DOOR_MOTOR_PWM_OPEN_FREQ, duty=gpioconfig.DOOR_MOTOR_PWM_OPEN_DUTY)
+        motorPwmTimer.init(period=gpioconfig.DOOR_MOTOR_ROLLTATE_DELAY, mode=Timer.ONE_SHOT, callback=lambda x: _doorTimerDeinit(x, pwm))
+        pass
+
+
+    def doorClose():
+        global isDoorOperating
+        if isDoorOperating:
+            return
+        isDoorOperating = True
+        log.info("Door closed permentally")
+        lightDoorAlertLed()
+        pwm = PWM(pinMotor, freq=gpioconfig.DOOR_MOTOR_PWM_CLOSE_FREQ, duty=gpioconfig.DOOR_MOTOR_PWM_CLOSE_DUTY)
+        motorPwmTimer.init(period=gpioconfig.DOOR_MOTOR_ROLLTATE_DELAY, mode=Timer.ONE_SHOT, callback=lambda x: _doorTimerDeinit(x, pwm))
+        pass
+
+
+    def doorOpenAndClose():
+        global isDoorOperating
+        if isDoorOperating:
+            return
+        isDoorOperating = True
+        if isDoorForceLocked:
+            log.info("Door is force locked, cannot open. Press unlock button first")
+            return
+        log.info("Door unlocked, will be closed automatically after %d s" % gpioconfig.DOOR_AUTOCLOSE_DELAY)
+        lightDoorAlertLed()
+        pwm = PWM(pinMotor, freq=gpioconfig.DOOR_MOTOR_PWM_OPEN_FREQ, duty=gpioconfig.DOOR_MOTOR_PWM_OPEN_DUTY)
+        motorPwmTimer.init(period=gpioconfig.DOOR_MOTOR_ROLLTATE_DELAY, mode=Timer.ONE_SHOT, callback=lambda x: _doorOpenAndClose2(x, pwm))
+
+
+    def _doorOpenAndClose2(timer: Timer, pwm: PWM):
+        global isDoorOperating
+        pwm.deinit()
+        timer.deinit()
+        motorPwmTimer.init(period=gpioconfig.DOOR_AUTOCLOSE_DELAY, mode=Timer.ONE_SHOT, callback=lambda x: _doorOpenAndClose3(x, pwm))
+
+
+    def _doorOpenAndClose3(timer: Timer, pwm: PWM):
+        global isDoorOperating
+        pwm = PWM(pinMotor, freq=gpioconfig.DOOR_MOTOR_PWM_CLOSE_FREQ, duty=gpioconfig.DOOR_MOTOR_PWM_CLOSE_DUTY)
+        motorPwmTimer.init(period=gpioconfig.DOOR_MOTOR_ROLLTATE_DELAY, mode=Timer.ONE_SHOT, callback=lambda x: _doorTimerDeinit(x, pwm))
