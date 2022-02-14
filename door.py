@@ -9,12 +9,13 @@ isFingerDetecting = False
 isFingerDetectionShouldStop = False
 isFingerAdding = False
 humanAlertTimer: Timer
+fingerCheckTimer: Timer
 
 def addFinger():
     global isFingerAdding
     isFingerAdding = True
     log.info("Finger: Prepared to add finger, put your finger now.")
-    gpios.beepOutside(time=150, num=4)
+    gpios.beepBoth(time=200, num=4)
     as608.enroll_finger_to_device(gpios.fingerSession, as608)
     isFingerAdding = False
 
@@ -22,7 +23,7 @@ def addFingerAsync():
     _thread.start_new_thread(addFinger, ())
 
 def onFingerDetected(finger_id: int, confidence: float):
-    gpios.beepOutsideOnce(1000)
+    gpios.beepBothOnce(1200)
     gpios.doorOpenAndClose()
 
 
@@ -78,16 +79,53 @@ def _pinHumanSensorIrqHandler(pin: Pin):
     if pin.value() == 1:    
         log.info("Human sensor detected")
         gpios.pinBeepOutside.value(1)
-        humanAlertTimer.init(period=200, mode=Timer.PERIODIC, callback=_humanSensorAlertTimerHandler)
+        humanAlertTimer.init(period=150, mode=Timer.PERIODIC, callback=_humanSensorAlertTimerHandler)
     else:
         log.info("Human sensor released")
         gpios.pinBeepOutside.value(0)
         humanAlertTimer.deinit()
 
+
+def _checkFingerSensor(timer=None):
+    global isFingerDetecting
+    if not isFingerDetecting:
+        try:
+            if not gpios.fingerSession.check_module():
+                log.warn("Finger sensor has errors, soft_reset")
+                gpios.lightDoorAlertLed()
+                gpios.fingerSession.soft_reset()
+                gpios.unlightDoorAlertLed()
+        except Exception as e:
+            log.warn("Finger sensor down with error: %s" % e)
+            fingerCheckTimer.deinit()
+            gpios.lightDoorAlertLed()
+            gpios.beepBoth(time=300, num=10)
+            
+            while True:
+                try:
+                    log.info("Finger sensor Reconnecting")
+                    gpios.connectFinger()
+                    break
+                except Exception as ex:
+                    gpios.beepBoth(time=300, num=10)
+                    log.warn("Finger sensor reconnect failed with error: %s" % ex)
+
+            gpios.unbeepBoth()
+            gpios.unlightDoorAlertLed()
+            fingerCheckTimer.init(period=gpioconfig.FINGET_KEEP_ALIVE_DELAY, mode=Timer.PERIODIC, callback=_checkFingerSensor)
+
+
+def startFingerKeepAlive():
+    global fingerCheckTimer
+    log.info("Finger keepalive enabled")
+    fingerCheckTimer = Timer(5)
+    fingerCheckTimer.init(period=gpioconfig.FINGET_KEEP_ALIVE_DELAY, mode=Timer.PERIODIC, callback=_checkFingerSensor)
+
+
 def startHumanSensor():
     global humanAlertTimer 
     if gpioconfig.HUMAN_SENSOR_ENABLE:
         log.info("Starting human sensor alterter")
-        humanAlertTimer = Timer(-1)
+        humanAlertTimer = Timer(4)
         if gpioconfig.HUMAN_SENSOR_ALERT_WHEN_DETECTED:
             gpios.pinHumanSensorIrqHandler = _pinHumanSensorIrqHandler

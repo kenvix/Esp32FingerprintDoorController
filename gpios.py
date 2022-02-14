@@ -148,6 +148,7 @@ def beepInsideOnce(time=300):
     beepTimer.init(period=time, mode=Timer.ONE_SHOT, callback=lambda x: pinBeepInside.value(0))
 
 def unbeepBoth(*args, **kwargs):
+    beepTimer.deinit()
     pinBeepOutside.value(0)
     pinBeepInside.value(0)
 
@@ -200,12 +201,14 @@ def reboot():
     pinReset: Pin = machine.Pin(gpioconfig.REBOOT_PIN, Pin.OUT)
     pinReset.value(1)
 
+def connectFinger():
+    global fingerSession
+    fingerSession = as608.connect_serial_session(gpioconfig.FINGER_UART_PORT)
 
 def loadFinger():
     global fingerSession, fingerWakPin
     if gpioconfig.FINGER_ENABLE:
-        fingerSession = as608.connect_serial_session(
-            gpioconfig.FINGER_UART_PORT)
+        connectFinger()
         fingerWakPin = machine.Pin(gpioconfig.FINGER_WAK_PIN, Pin.IN)
         if gpioconfig.FINGER_WAK_IRQ_ENABLE:
             fingerWakPin.irq(

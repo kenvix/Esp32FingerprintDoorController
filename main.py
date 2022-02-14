@@ -300,9 +300,10 @@ def _boot(*args, **kwargs):
 
     if gpioconfig.FINGER_ENABLE:
         gpios.loadFinger()
+        import door
         if gpioconfig.DOOR_DIRECT_ENABLE or gpioconfig.DOOR_MOTOR_ENABLE:
-            import door
             door.startDoorController()
+        door.startFingerKeepAlive()
 
     gc.collect()
     gpios.cancelBlinkStatusLED()
