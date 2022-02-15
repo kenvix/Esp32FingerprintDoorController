@@ -41,6 +41,7 @@ def addFinger():
 
 
 def deleteFinger(location):
+    location = int(location)
     gpios.fingerSession.delete_model(location)
     log.info("Finger: Deleted finger %d" % location)
 

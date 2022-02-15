@@ -309,8 +309,8 @@ def _boot(*args, **kwargs):
     gpios.cancelBlinkStatusLED()
     gpios.beepOutsideOnce(180)
     global timer_gc
-    timer_gc = Timer(-1)
-    timer_gc.init(period=60 * 1000, mode=Timer.PERIODIC, callback=lambda t: gc.collect())
+    timer_gc = Timer(3)
+    timer_gc.init(period=3 * 1000, mode=Timer.PERIODIC, callback=lambda t: gc.collect())
     
 
 def main():

@@ -1,4 +1,3 @@
-from config import netconfig
 import _thread
 import picoweb
 import log
@@ -59,8 +58,10 @@ def fingerGetTemplatesList(req, resp):
 @app.route("/finger/add")
 def fingerAdd(req, resp):
     try:
-        if door.isFingerAdding or door.isFingerDetecting:
+        if door.isFingerDetecting:
             yield from resp.awrite(CommonResult(409, "Finger is adding or detecting, please wait later").toJSON())
+        elif door.isFingerAdding:
+            yield from resp.awrite(CommonResult(0, "Prepared to add finger, put your finger now. (already adding)").toJSON())
         else:
             door.addFingerAsync()
             yield from resp.awrite(CommonResult(0, "Prepared to add finger, put your finger now.").toJSON())
@@ -72,9 +73,13 @@ def fingerAdd(req, resp):
 @app.route("/finger/delete")
 def fingerDelete(req, resp):
     try:
+        req.parse_qs()
         if 'id' in req.form:
-            door.deleteFinger(req.form['id'])
-            yield from resp.awrite(CommonResult(0, "Deleted finger %d" % req.form['id']).toJSON())
+            if door.isFingerAdding or door.isFingerDetecting:
+                yield from resp.awrite(CommonResult(409, "Finger is adding or detecting, please wait later").toJSON())
+            else:
+                door.deleteFinger(req.form['id'])
+                yield from resp.awrite(CommonResult(0, "Deleted finger %s" % req.form['id']).toJSON())
         else:   
             yield from resp.awrite(CommonResult(400, "Missing param id.").toJSON())
     except Exception as e:
