@@ -2,10 +2,12 @@ from config import gpioconfig
 import gpios
 import log
 import as608
+import sys
 from machine import Pin, Timer
 import _thread
 from config import functionconfig
 from messager import messager
+import gc
 
 isFingerDetecting = False
 isFingerDetectionShouldStop = False
@@ -14,17 +16,28 @@ humanAlertTimer: Timer
 fingerCheckTimer: Timer
 fingerLastInsertedTime = None
 
+def _addFingerOnNext():
+    log.info("Finger: Put finger again.")
+    gpios.beepBoth(time=400, num=2)
+
 def addFinger():
     global isFingerAdding, fingerLastInsertedTime
+    if isFingerAdding:
+        return
     isFingerAdding = True
-    log.info("Finger: Prepared to add finger, put your finger now.")
-    gpios.beepBoth(time=200, num=4)
-    as608.enroll_finger_to_device(gpios.fingerSession, as608)
-    fingerLastInsertedTime = log.now()
-    isFingerAdding = False
-    log.info("Finger: Finger added. Location %d" % gpios.fingerSession.last_inserted_location)
-    if functionconfig.FINGER_MESSAGE_ENABLE:
-        messager.sendMessage(functionconfig.FINGER_MESSAGE_CONTENT % (log.nowInString(), log.nowInString(fingerLastInsertedTime), "添加指纹 %d" % gpios.fingerSession.last_inserted_location))
+    try:
+        log.info("Finger: Prepared to add finger, put your finger now.")
+        gpios.beepBoth(time=200, num=4)
+        gc.collect()
+        as608.enroll_finger_to_device(gpios.fingerSession, as608, onNext=_addFingerOnNext)
+        fingerLastInsertedTime = log.now()
+        isFingerAdding = False
+        log.info("Finger: Finger added. Location %d" % gpios.fingerSession.last_inserted_location)
+        if functionconfig.FINGER_MESSAGE_ENABLE:
+            messager.sendMessage(functionconfig.FINGER_MESSAGE_CONTENT % (log.nowInString(), log.nowInString(fingerLastInsertedTime), "添加指纹 %d" % gpios.fingerSession.last_inserted_location))
+    except Exception as e:
+        log.error("Finger: addFinger detector got a unexpected exception on: %s" % e)
+        sys.print_exception(e)
 
 
 def deleteFinger(location):
@@ -55,21 +68,28 @@ def _doorFingerWakIrqHandler(pin: Pin):
 
 
 def _doorFingerWakIrqPressHandler():
-    global isFingerDetecting, isFingerDetectionShouldStop
+    global isFingerDetecting, isFingerDetectionShouldStop, isFingerAdding
     isFingerDetecting = True
     isFingerDetectionShouldStop = False
-    log.debug("Finger wak pin pressed")
-    gpios.lightDoorAlertLed()
-    while not isFingerDetectionShouldStop:
-        if as608.search_fingerprint_on_device(gpios.fingerSession, as608, exit_if_no_finger=True):
-            log.info("Finger checked: Finger id: %d | Confidence: %f" % (gpios.fingerSession.finger_id, gpios.fingerSession.confidence))
-            onFingerDetected(gpios.fingerSession.finger_id, gpios.fingerSession.confidence)
-            break
-        else:
-            log.info("Finger not found or unmatched")
-            gpios.beepOutside(time=200, num=2)
-    
-    gpios.unlightDoorAlertLed()
+    try:
+        log.debug("Finger wak pin pressed")
+        if isFingerAdding:
+            log.debug("Finger adding, do not open door.")
+            return
+        gpios.lightDoorAlertLed()
+        while not isFingerDetectionShouldStop:
+            if as608.search_fingerprint_on_device(gpios.fingerSession, as608, exit_if_no_finger=True):
+                log.info("Finger checked: Finger id: %d | Confidence: %f" % (gpios.fingerSession.finger_id, gpios.fingerSession.confidence))
+                onFingerDetected(gpios.fingerSession.finger_id, gpios.fingerSession.confidence)
+                break
+            else:
+                log.info("Finger not found or unmatched")
+                gpios.beepOutside(time=200, num=2)
+        
+        gpios.unlightDoorAlertLed()
+    except Exception as e:
+        log.error("Finger: _doorFingerWakIrqPressHandler detector got a unexpected exception on: %s" % e)
+        sys.print_exception(e)
     isFingerDetecting = False
 
 
@@ -102,8 +122,8 @@ def _pinHumanSensorIrqHandler(pin: Pin):
 
 
 def _checkFingerSensor(timer=None):
-    global isFingerDetecting
-    if not isFingerDetecting:
+    global isFingerDetecting, isFingerAdding
+    if not isFingerDetecting and not isFingerAdding:
         try:
             if not gpios.fingerSession.check_module():
                 log.warn("Finger sensor has errors, soft_reset")

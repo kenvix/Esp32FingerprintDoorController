@@ -1,5 +1,3 @@
-import sys
-
 import serial
 import time
 import os
@@ -65,7 +63,8 @@ MODULEOK = 0x55
 
 
 def fig_print_log(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs)
+    # print(*args, file=sys.stderr, **kwargs)
+    print(*args)
 
 
 class FingerException(Exception):
@@ -411,6 +410,7 @@ class Operation:
         self._print_debug("_get_data reply:", reply, data_type="hex")
         return reply
 
+
     def _send_packet(self, data):
         packet = [_STARTCODE >> 8, _STARTCODE & 0xFF]
         packet = packet + self.address
@@ -566,6 +566,7 @@ def enroll_finger_to_device(session, as608_lib, imgNum=2, onNext=lambda: fig_pri
                     break
                 if i == as608_lib.NOFINGER:
                     fig_print_log(".", end="", flush=True)
+                    time.sleep(1)
                 elif i == as608_lib.IMAGEFAIL:
                     raise FingerException("Imaging error", 11)
                 else:
@@ -587,7 +588,7 @@ def enroll_finger_to_device(session, as608_lib, imgNum=2, onNext=lambda: fig_pri
 
             if finger_img_i < imgNum:
                 onNext()
-                time.sleep(1)
+                time.sleep(2)
                 i = session.get_image()
                 while i != as608_lib.NOFINGER:
                     i = session.get_image()

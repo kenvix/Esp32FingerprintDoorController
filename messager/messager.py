@@ -1,5 +1,6 @@
 from config import wechatconfig, httpmessagerconfig
 import log
+import sys
 
 if wechatconfig.WECHAT_ENABLE:
     from messager import wechat
@@ -8,7 +9,15 @@ if httpmessagerconfig.HTTP_MESSAGER_ENABLE:
 
 def sendMessage(msg: str):
     if wechatconfig.WECHAT_ENABLE:
-        wechat.sendMessage(msg)
+        try:
+            wechat.sendMessage(msg)
+        except Exception as e:
+            log.error("Wechat: Send message failed. %s" % e)
+            sys.print_exception(e)
     if httpmessagerconfig.HTTP_MESSAGER_ENABLE:
-        http.sendMessage(msg)
+        try:
+            http.sendMessage(msg)
+        except Exception as e:
+            log.error("HTTP: Send message failed. %s" % e)
+            sys.print_exception(e)
     log.info("Message Sent: %s" % msg)

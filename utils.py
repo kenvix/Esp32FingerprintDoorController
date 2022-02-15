@@ -1,7 +1,7 @@
 import json
 
 class CommonResult:
-    def __init__(self, status, info, data):
+    def __init__(self, status, info, data = None):
         self.obj = {
             "status" : int(status),
             "info" : str(info),

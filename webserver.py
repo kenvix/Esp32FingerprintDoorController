@@ -8,6 +8,7 @@ from config import gpioconfig
 import door
 from config import functionconfig
 from messager import messager
+import sys
 
 app = picoweb.WebApp("")
 
@@ -58,14 +59,18 @@ def fingerGetTemplatesList(req, resp):
 @app.route("/finger/add")
 def fingerAdd(req, resp):
     try:
-        door.addFingerAsync()
-        yield from resp.awrite(CommonResult(0, "Prepared to add finger, put your finger now.").toJSON())
+        if door.isFingerAdding or door.isFingerDetecting:
+            yield from resp.awrite(CommonResult(409, "Finger is adding or detecting, please wait later").toJSON())
+        else:
+            door.addFingerAsync()
+            yield from resp.awrite(CommonResult(0, "Prepared to add finger, put your finger now.").toJSON())
     except Exception as e:
+        sys.print_exception(e)
         yield from resp.awrite(CommonResult(500, "Failed to add finger: %s" % e).toJSON())
 
 
 @app.route("/finger/delete")
-def fingerAdd(req, resp):
+def fingerDelete(req, resp):
     try:
         if 'id' in req.form:
             door.deleteFinger(req.form['id'])
@@ -73,6 +78,7 @@ def fingerAdd(req, resp):
         else:   
             yield from resp.awrite(CommonResult(400, "Missing param id.").toJSON())
     except Exception as e:
+        sys.print_exception(e)
         yield from resp.awrite(CommonResult(500, "Failed to delete finger: %s" % e).toJSON())
 
 
