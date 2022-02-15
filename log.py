@@ -19,8 +19,9 @@ def now():
     """
     return rtc.datetime()
 
-def nowInString():
-    n = now()
+def nowInString(n=None):
+    if n is None:
+        n = now()
     return "%04d-%02d-%02d %02d:%02d:%02d.%06d" % (n[0], n[1], n[2], n[4], n[5], n[6], n[7])
 
 def enableSyslog():

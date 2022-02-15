@@ -94,6 +94,7 @@ class Operation:
     baudrate = None
     system_id = None
     status_register = None
+    last_inserted_location = None
 
     def __init__(self, uart: serial, passwd=(0, 0, 0, 0)):
         # Create object with UART for interface, and default 32-bit password
@@ -616,7 +617,7 @@ def enroll_finger_to_device(session, as608_lib, imgNum=2, onNext=lambda: fig_pri
             raise FingerException("Flash storage error", 1)
         else:
             raise FingerException("Other error", 0)
-
+    session.last_inserted_location = location
     return True
 
 

@@ -4,20 +4,33 @@ import log
 import as608
 from machine import Pin, Timer
 import _thread
+from config import functionconfig
+from messager import messager
 
 isFingerDetecting = False
 isFingerDetectionShouldStop = False
 isFingerAdding = False
 humanAlertTimer: Timer
 fingerCheckTimer: Timer
+fingerLastInsertedTime = None
 
 def addFinger():
-    global isFingerAdding
+    global isFingerAdding, fingerLastInsertedTime
     isFingerAdding = True
     log.info("Finger: Prepared to add finger, put your finger now.")
     gpios.beepBoth(time=200, num=4)
     as608.enroll_finger_to_device(gpios.fingerSession, as608)
+    fingerLastInsertedTime = log.now()
     isFingerAdding = False
+    log.info("Finger: Finger added. Location %d" % gpios.fingerSession.last_inserted_location)
+    if functionconfig.FINGER_MESSAGE_ENABLE:
+        messager.sendMessage(functionconfig.FINGER_MESSAGE_CONTENT % (log.nowInString(), log.nowInString(fingerLastInsertedTime), "添加指纹 %d" % gpios.fingerSession.last_inserted_location))
+
+
+def deleteFinger(location):
+    gpios.fingerSession.delete_model(location)
+    log.info("Finger: Deleted finger %d" % location)
+
 
 def addFingerAsync():
     _thread.start_new_thread(addFinger, ())
@@ -25,6 +38,8 @@ def addFingerAsync():
 def onFingerDetected(finger_id: int, confidence: float):
     gpios.beepBothOnce(1200)
     gpios.doorOpenAndClose()
+    if functionconfig.DOOR_MESSAGE_ENABLE:
+        messager.sendMessage(functionconfig.DOOR_MESSAGE_CONTENT % (log.nowInString(), "指纹", str(finger_id), "置信度 %f" % confidence))
 
 
 def _doorFingerWakIrqHandler(pin: Pin):
