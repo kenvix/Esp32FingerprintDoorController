@@ -32,6 +32,18 @@ def index(req, resp):
     yield from resp.awrite(CommonResult.test())
 
 
+@app.route("/beep")
+def beep(req, resp):
+    gpios.beepBoth(800, 2)
+    yield from resp.awrite(CommonResult(0, "OK", None).toJSON())
+
+
+@app.route("/system/reboot")
+def beep(req, resp):
+    gpios.reboot()
+    yield from resp.awrite(CommonResult(0, "OK", None).toJSON())
+
+
 @app.route("/finger")
 def fingerAdd(req, resp):
     yield from resp.awrite(CommonResult(0, "OK", {
@@ -90,7 +102,6 @@ def fingerDelete(req, resp):
 
 @app.route("/door")
 def doorInfo(req, resp):
-    gpios.doorOpenAndClose()
     yield from resp.awrite(CommonResult(0, "see also: /door/unlock, /door/open, /door/close", {
         "autoClose_Delay" : gpioconfig.DOOR_AUTOCLOSE_DELAY,
         "isMotorEnabled" : gpioconfig.DOOR_MOTOR_ENABLE,
